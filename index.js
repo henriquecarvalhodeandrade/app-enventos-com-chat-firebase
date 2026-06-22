@@ -1,34 +1,32 @@
-// Import stylesheets
-import './style.css';
-// Firebase App (the core Firebase SDK) is always required
-import { initializeApp } from 'firebase/app';
+// Removido o import do CSS por texto (o navegador lê direto pelo link do HTML)
 
-// Add the Firebase products and methods that you want to use
-import {
-  getAuth,
-  EmailAuthProvider,
-  signOut,
-  onAuthStateChanged
-} from 'firebase/auth';
+// Importando os SDKs do Firebase via CDN nativa para o navegador
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { 
+  getAuth, 
+  EmailAuthProvider, 
+  signOut, 
+  onAuthStateChanged 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { 
+  getFirestore, 
+  addDoc, 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  where 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-import {
-  getFirestore,
-  addDoc,
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  doc,
-  setDoc,
-  where
-} from 'firebase/firestore';
+// Importando a biblioteca de interface de autenticação (FirebaseUI) global
+import 'https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__pt.js';
+const firebaseui = window.firebaseui;
 
-import * as firebaseui from 'firebaseui';
-
-// Document elements
+// Mapeamento dos elementos do DOM
 const startRsvpButton = document.getElementById('startRsvp');
 const guestbookContainer = document.getElementById('guestbook-container');
-
 const form = document.getElementById('leave-message');
 const input = document.getElementById('message');
 const guestbook = document.getElementById('guestbook');
@@ -43,7 +41,6 @@ let attendingListener = null;
 let db, auth;
 
 async function main() {
-  // Add Firebase project configuration object here
   const firebaseConfig = {
     apiKey: 'AIzaSyDlkkxsgG8bFDvgmAulKxNOgDph4KCY6eI',
     authDomain: 'fir-web-codelab-ec7f6.firebaseapp.com',
@@ -53,44 +50,36 @@ async function main() {
     appId: '1:388192112189:web:feddc902396824a1c72454',
   };
 
-  // initializeApp(firebaseConfig);
-  initializeApp(firebaseConfig);
-  auth = getAuth();
-  db = getFirestore()
+  // Inicializando o Firebase com as instâncias globais
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
 
-  // Initialize the FirebaseUI widget using Firebase
+  // Inicializa o widget do FirebaseUI
   const ui = new firebaseui.auth.AuthUI(auth);
 
-  // FirebaseUI config
   const uiConfig = {
     credentialHelper: firebaseui.auth.CredentialHelper.NONE,
     signInOptions: [
-      // Email / Password Provider.
       EmailAuthProvider.PROVIDER_ID,
     ],
     callbacks: {
       signInSuccessWithAuthResult: function (authResult, redirectUrl) {
-        // Handle sign-in.
-        // Return false to avoid redirect.
-        return false;
+        return false; // Evita o redirecionamento padrão da página
       },
     },
   };
 
-  // // Is there an email link sign-in?
-  // if (ui.isPendingRedirect()) {
-  //   ui.start('#firebaseui-auth-container', uiConfig);
-  // }
-
-  // Listen to RSVP button clicks
+  // Monitora o clique no botão de RSVP / Logout
   startRsvpButton.addEventListener("click", () => {
     if (auth.currentUser) {
       signOut(auth);
     } else {
-      ui.start("#firebaseui-auth-container", uiConfig)
+      ui.start("#firebaseui-auth-container", uiConfig);
     }
   });
 
+  // Escuta as mudanças de estado do usuário (Logado ou Deslogado)
   onAuthStateChanged(auth, user => {
     if (user) {
       startRsvpButton.textContent = 'LOGOUT';
@@ -101,68 +90,50 @@ async function main() {
     } else {
       startRsvpButton.textContent = 'RSVP';
       guestbookContainer.style.display = 'none';
-      unsubscribeGuestoook();
+      unsubscribeGuestbook();
       unsubscribeCurrentRSVP();
       unsubscribeAttendingCount();
-
     }
   });
 
-  // Listen to the form submission
+  // Envio de mensagens no mural (Chat)
   form.addEventListener('submit', async e => {
-    // Prevent the default form redirect
     e.preventDefault();
 
-    // Write a new message to the database collecion "guestbook"
-    addDoc(collection(db, 'guestbook'), {
+    if (!input.value.trim()) return false;
+
+    await addDoc(collection(db, 'guestbook'), {
       text: input.value,
       timestamp: Date.now(),
-      name: auth.currentUser.displayName,
+      name: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
       userId: auth.currentUser.uid
     });
 
     input.value = '';
-    
-    return false
-
+    return false;
   });
 
-  // Create query for messages
-  function subscribeGuestbook(){
+  function subscribeGuestbook() {
     const q = query(collection(db, 'guestbook'), orderBy('timestamp', 'desc'));
 
     guestbookListener = onSnapshot(q, snaps => {
-      // Reset Page
       guestbook.innerHTML = '';
-
-      // Look through documents in database
       snaps.forEach(doc => {
-
-        // Create an HTML entry for each document and add it to the chat
         const entry = document.createElement('p');
-
-        // Use o email se o nome estiver vazio
         const name = doc.data().name || "Anônimo";
         entry.textContent = name + ': ' + doc.data().text;
         guestbook.appendChild(entry);
-
       });
-
     });
-
-    
   }
   
-  // Unsubscribe from guestbook updates
-  function unsubscribeGuestoook(){
-    if (guestbookListener != null){
+  function unsubscribeGuestbook() {
+    if (guestbookListener != null) {
       guestbookListener();
       guestbookListener = null;
     }
   }
 
-
-  // Listen to Yes or No buttons confirmation presence
   async function updateRSVP(isAttending) {
     const userRef = doc(db, 'attendees', auth.currentUser.uid);
     try {
@@ -175,14 +146,11 @@ async function main() {
   rsvpYes.onclick = () => updateRSVP(true);
   rsvpNo.onclick = () => updateRSVP(false);
 
-
   function subscribeCurrentRSVP(user) {
     const ref = doc(db, 'attendees', user.uid);
     rsvpListener = onSnapshot(ref, doc => {
       if (doc && doc.data()) {
         const attendingResponse = doc.data().attending;
-
-        // Update css classes for buttons
         if (attendingResponse) {
           rsvpYes.className = 'clicked';
           rsvpNo.className = '';
@@ -203,7 +171,6 @@ async function main() {
     rsvpNo.className = '';
   }
 
-  // Starts de attending count 
   function subscribeAttendingCount() {
     const attendingQuery = query(
       collection(db, 'attendees'),
@@ -211,12 +178,11 @@ async function main() {
     );
 
     attendingListener = onSnapshot(attendingQuery, snap => {
-      const newAttendeeCount = snap.docs.length; // <--- Corrigido de 'lenght' para 'length'
+      const newAttendeeCount = snap.docs.length;
       numberAttending.innerHTML = newAttendeeCount + ' people going';
     });
   }
 
-  // Stops the count and clear the screen
   function unsubscribeAttendingCount() {
     if (attendingListener != null) {
       attendingListener();
@@ -224,9 +190,7 @@ async function main() {
     }
     numberAttending.innerHTML = ''; 
   }
-
-
-
 }
 
+// Inicializa a aplicação
 main();
