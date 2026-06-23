@@ -2,71 +2,101 @@
 <html lang="pt-br">
   <head>
     <meta charset="utf-8" />
-    <title>Firebase Meetup</title>
-    
+    <title>Encontros Formais — Firebase Meetup</title>
+    <meta name="description" content="Venha se conectar com as pessoas, fazer networking e comer pizza no nosso encontro formal mensal em São Paulo." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      type="text/css"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
-      href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css"
     />
     <link
-      href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Roboto:300,400,700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
       rel="stylesheet"
     />
 
     <link rel="stylesheet" href="styles.css" />
-      
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
 
   <body>
-    <div id="app">
+
+    <!-- Hero Banner -->
+    <header id="hero">
+      <div class="hero-overlay"></div>
       <img
+        id="hero-img"
         src="https://firebasestorage.googleapis.com/v0/b/fir-images-a61c9.appspot.com/o/codelab.png?alt=media&token=f45f808c-ce40-4b34-944c-8d8fac00e13d"
         alt="Firebase Event Banner"
       />
-
-      <section id="event-details-container">
+      <div class="hero-content">
+        <span class="hero-badge">
+          <i class="material-icons-round">bolt</i> Evento ao vivo
+        </span>
         <h1>Site de Encontros Formais</h1>
-        <p><i class="material-icons">calendar_today</i> October 30</p>
-        <p><i class="material-icons">location_city</i> São Paulo, Brasil</p>
-        <button id="startRsvp">RSVP</button>
-      </section>
+        <div class="hero-meta">
+          <span><i class="material-icons-round">calendar_today</i> 30 de Outubro</span>
+          <span><i class="material-icons-round">location_on</i> São Paulo, Brasil</span>
+        </div>
+        <button id="startRsvp" class="rsvp-btn">
+          <i class="material-icons-round">how_to_reg</i>
+          <span>Confirmar Presença</span>
+        </button>
+      </div>
+    </header>
 
-      <hr />
+    <main id="app">
 
+      <!-- Auth container -->
       <section id="firebaseui-auth-container"></section>
 
-      <section id="description-container">
-        <h2>Encontro do Dia:</h2>
-        <p>Venha se conectar com as pessoas e comer pizza!</p>
-        <p id="number-attending"></p>
+      <!-- About the event -->
+      <section id="description-container" class="card">
+        <div class="card-icon">
+          <i class="material-icons-round">local_pizza</i>
+        </div>
+        <div class="card-body">
+          <h2>Encontro do Dia</h2>
+          <p>Venha se conectar com as pessoas e comer pizza!</p>
+          <p id="number-attending" class="attending-count"></p>
+        </div>
       </section>
 
+      <!-- RSVP + Chat (visível apenas logado) -->
       <section id="guestbook-container" style="display: none;">
-        <h2>Are you attending?</h2>
-        <button id="rsvp-yes">YES</button>
-        <button id="rsvp-no">NO</button>
 
-        <h2>Discussion</h2>
-        <form id="leave-message">
-          <label>Leave a message: </label>
-          <input type="text" id="message">
-          <button type="submit">
-            <i class="material-icons">send</i>
-            <span>SEND</span>
-          </button>
-        </form>
+        <div class="rsvp-card card">
+          <h2><i class="material-icons-round">how_to_reg</i> Você vai comparecer?</h2>
+          <div class="rsvp-actions">
+            <button id="rsvp-yes" class="rsvp-choice">
+              <i class="material-icons-round">check_circle</i> Sim, vou!
+            </button>
+            <button id="rsvp-no" class="rsvp-choice rsvp-no-btn">
+              <i class="material-icons-round">cancel</i> Não posso
+            </button>
+          </div>
+        </div>
+
+        <div class="chat-card card">
+          <h2><i class="material-icons-round">forum</i> Discussão</h2>
+          <section id="guestbook"></section>
+          <form id="leave-message" class="chat-form">
+            <input type="text" id="message" placeholder="Escreva uma mensagem..." autocomplete="off" />
+            <button type="submit" class="send-btn" aria-label="Enviar">
+              <i class="material-icons-round">send</i>
+            </button>
+          </form>
+        </div>
+
       </section>
 
-      <section id="guestbook"></section>
-    </div>
+    </main>
 
-    <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__pt.js"></script>
+    <footer id="site-footer">
+      <p>Feito com <i class="material-icons-round" style="font-size:14px;vertical-align:middle;color:#f87171;">favorite</i> usando Firebase &amp; Vanilla JS</p>
+    </footer>
+
     <script type="module" src="index.js"></script>
   </body>
 </html>

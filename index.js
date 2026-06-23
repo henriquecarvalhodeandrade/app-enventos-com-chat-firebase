@@ -1,10 +1,9 @@
-// Removido o import do CSS por texto (o navegador lê direto pelo link do HTML)
-
 // Importando os SDKs do Firebase via CDN nativa para o navegador
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
   getAuth, 
-  EmailAuthProvider, 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut, 
   onAuthStateChanged 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -20,12 +19,10 @@ import {
   where 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// FirebaseUI é carregada via <script> no HTML (não é um ES Module)
-const firebaseui = window.firebaseui;
-
 // Mapeamento dos elementos do DOM
 const startRsvpButton = document.getElementById('startRsvp');
 const guestbookContainer = document.getElementById('guestbook-container');
+const authContainer = document.getElementById('firebaseui-auth-container');
 const form = document.getElementById('leave-message');
 const input = document.getElementById('message');
 const guestbook = document.getElementById('guestbook');
@@ -39,6 +36,123 @@ let attendingListener = null;
 
 let db, auth;
 
+// Exibe o formulário de login customizado dentro de #firebaseui-auth-container
+function showLoginForm() {
+  authContainer.innerHTML = `
+    <div id="login-form">
+      <div class="login-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="4" fill="white"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3>Bem-vindo!</h3>
+      <p class="subtitle">Entre ou crie sua conta para participar</p>
+
+      <div class="auth-field">
+        <input id="auth-email" type="email" placeholder="Seu e-mail" autocomplete="email">
+        <i class="material-icons-round field-icon">mail</i>
+      </div>
+      <div class="auth-field">
+        <input id="auth-password" type="password" placeholder="Senha" autocomplete="current-password">
+        <i class="material-icons-round field-icon">lock</i>
+      </div>
+
+      <div id="auth-error" role="alert">
+        <i class="material-icons-round" style="font-size:16px;">error</i>
+        <span id="auth-error-text"></span>
+      </div>
+
+      <div class="auth-actions">
+        <button id="btn-signin" class="btn-primary">Entrar</button>
+        <button id="btn-signup" class="btn-secondary">Criar conta</button>
+        <button id="btn-cancel" class="btn-cancel-link">Cancelar</button>
+      </div>
+    </div>
+  `;
+
+  const emailInput    = document.getElementById('auth-email');
+  const passwordInput = document.getElementById('auth-password');
+  const errorDiv      = document.getElementById('auth-error');
+  const errorText     = document.getElementById('auth-error-text');
+  const btnSignin     = document.getElementById('btn-signin');
+  const btnSignup     = document.getElementById('btn-signup');
+
+  // Foca no campo de e-mail automaticamente
+  emailInput.focus();
+
+  // Esconde erro ao digitar
+  [emailInput, passwordInput].forEach(el =>
+    el.addEventListener('input', () => errorDiv.classList.remove('visible'))
+  );
+
+  function showError(msg) {
+    errorText.textContent = msg;
+    errorDiv.classList.remove('visible');
+    void errorDiv.offsetWidth; // força reflow para re-triggar a animação de shake
+    errorDiv.classList.add('visible');
+  }
+
+  function setLoading(btn, loading, originalHTML) {
+    btnSignin.disabled = loading;
+    btnSignup.disabled = loading;
+    if (loading) {
+      const spinnerClass = btn.classList.contains('btn-secondary') ? 'spinner dark' : 'spinner';
+      btn.innerHTML = `<span class="${spinnerClass}"></span> Aguarde...`;
+    } else {
+      btn.innerHTML = originalHTML;
+    }
+  }
+
+  btnSignin.addEventListener('click', async () => {
+    errorDiv.classList.remove('visible');
+    const original = btnSignin.innerHTML;
+    setLoading(btnSignin, true, original);
+    try {
+      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      hideLoginForm();
+    } catch (e) {
+      showError(traduzirErro(e.code));
+      setLoading(btnSignin, false, original);
+    }
+  });
+
+  btnSignup.addEventListener('click', async () => {
+    errorDiv.classList.remove('visible');
+    const original = btnSignup.innerHTML;
+    setLoading(btnSignup, true, original);
+    try {
+      await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      hideLoginForm();
+    } catch (e) {
+      showError(traduzirErro(e.code));
+      setLoading(btnSignup, false, original);
+    }
+  });
+
+  document.getElementById('btn-cancel').addEventListener('click', () => {
+    hideLoginForm();
+  });
+}
+
+function hideLoginForm() {
+  authContainer.innerHTML = '';
+}
+
+// Traduz os códigos de erro do Firebase para português
+function traduzirErro(code) {
+  const erros = {
+    'auth/invalid-email':        'E-mail inválido.',
+    'auth/user-not-found':       'Usuário não encontrado.',
+    'auth/wrong-password':       'Senha incorreta.',
+    'auth/email-already-in-use': 'Este e-mail já está em uso.',
+    'auth/weak-password':        'A senha deve ter pelo menos 6 caracteres.',
+    'auth/too-many-requests':    'Muitas tentativas. Tente novamente mais tarde.',
+    'auth/invalid-credential':   'E-mail ou senha incorretos.',
+  };
+  return erros[code] || 'Erro ao autenticar. Tente novamente.';
+}
+
 async function main() {
   const firebaseConfig = {
     apiKey: 'AIzaSyDlkkxsgG8bFDvgmAulKxNOgDph4KCY6eI',
@@ -49,45 +163,33 @@ async function main() {
     appId: '1:388192112189:web:feddc902396824a1c72454',
   };
 
-  // Inicializando o Firebase com as instâncias globais
+  // Inicializando o Firebase
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-
-  // Inicializa o widget do FirebaseUI
-  const ui = new firebaseui.auth.AuthUI(auth);
-
-  const uiConfig = {
-    credentialHelper: firebaseui.auth.CredentialHelper.NONE,
-    signInOptions: [
-      EmailAuthProvider.PROVIDER_ID,
-    ],
-    callbacks: {
-      signInSuccessWithAuthResult: function (authResult, redirectUrl) {
-        return false; // Evita o redirecionamento padrão da página
-      },
-    },
-  };
 
   // Monitora o clique no botão de RSVP / Logout
   startRsvpButton.addEventListener("click", () => {
     if (auth.currentUser) {
       signOut(auth);
     } else {
-      ui.start("#firebaseui-auth-container", uiConfig);
+      showLoginForm();
     }
   });
 
   // Escuta as mudanças de estado do usuário (Logado ou Deslogado)
   onAuthStateChanged(auth, user => {
     if (user) {
-      startRsvpButton.textContent = 'LOGOUT';
-      guestbookContainer.style.display = 'block';
+      startRsvpButton.innerHTML = '<i class="material-icons-round">logout</i><span>Sair</span>';
+      startRsvpButton.classList.add('is-logout');
+      guestbookContainer.style.display = 'flex';
+      hideLoginForm();
       subscribeGuestbook();
       subscribeCurrentRSVP(user);
       subscribeAttendingCount();
     } else {
-      startRsvpButton.textContent = 'RSVP';
+      startRsvpButton.innerHTML = '<i class="material-icons-round">how_to_reg</i><span>Confirmar Presença</span>';
+      startRsvpButton.classList.remove('is-logout');
       guestbookContainer.style.display = 'none';
       unsubscribeGuestbook();
       unsubscribeCurrentRSVP();
@@ -125,7 +227,7 @@ async function main() {
       });
     });
   }
-  
+
   function unsubscribeGuestbook() {
     if (guestbookListener != null) {
       guestbookListener();
@@ -187,7 +289,7 @@ async function main() {
       attendingListener();
       attendingListener = null;
     }
-    numberAttending.innerHTML = ''; 
+    numberAttending.innerHTML = '';
   }
 }
 
