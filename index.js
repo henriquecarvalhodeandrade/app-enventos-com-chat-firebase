@@ -20,8 +20,7 @@ import {
   where 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// Importando a biblioteca de interface de autenticação (FirebaseUI) global
-import 'https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth__pt.js';
+// FirebaseUI é carregada via <script> no HTML (não é um ES Module)
 const firebaseui = window.firebaseui;
 
 // Mapeamento dos elementos do DOM
